@@ -30,7 +30,7 @@ int get_variable(char* name) {
             return memory[i].value;
         }
     }
-    printf("Identifer does NOT exist");
+    printf("Identifer does NOT exist\n");
     fflush(stdout);
     return -1;
 }

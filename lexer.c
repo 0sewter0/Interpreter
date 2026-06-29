@@ -28,6 +28,7 @@ void lexer(char* string, Token* tokens, int* token_count) {
             current_number = (current_number * 10) + (string[i] - '0');
             i++;
         } 
+        i--;
         append_token(tokens, token_count, TOKEN_NUMBER, current_number);
         printf("Number found: %d\n", current_number);
         fflush(stdout);
@@ -118,6 +119,14 @@ void lexer(char* string, Token* tokens, int* token_count) {
             case TOKEN_ASSIGN:
                 printf("Type: ASSIGN, Value: =\n");
                 break;
+            case TOKEN_IDENTIFER:
+                printf("Type: IDENTIFER\n");
+                break;
+            case TOKEN_LPAREN:
+                printf("Type: Lparenthesis'('\n");
+                break;
+            case TOKEN_RPAREN:
+                printf("Type: Rparenthesis ')'\n");
             default:
                 printf("Type: Unknown\n");
         }
