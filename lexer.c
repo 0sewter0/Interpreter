@@ -127,6 +127,10 @@ void lexer(char* string, Token* tokens, int* token_count) {
                 break;
             case TOKEN_RPAREN:
                 printf("Type: Rparenthesis ')'\n");
+                break;
+            case TOKEN_LET:
+                printf("Type: Keyword 'let'\n");
+                break;
             default:
                 printf("Type: Unknown\n");
         }
