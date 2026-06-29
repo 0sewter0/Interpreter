@@ -48,12 +48,22 @@ void lexer(char* string, Token* tokens, int* token_count) {
         append_token(tokens, token_count, TOKEN_SLASH, 0);
         printf("found an operation: /\n");
         fflush(stdout);
+       } else if(string[i] == '(') {
+        append_token(tokens, token_count, TOKEN_LPAREN, 0);
+        printf("found opening parenthesis: (\n");
+        fflush(stdout);
+       } else if(string[i] == ')') {
+        append_token(tokens, token_count, TOKEN_RPAREN, 0);
+        printf("found closing parenthesis: )\n");
+        fflush(stdout);
        } else {
         printf("Unknown symbol");
         fflush(stdout);
        }
+
+       }
        
-    }
+    
     printf("\n--- Resulting Tokens Array ---\n");
     for(int t = 0; t < *token_count; t++) {
         printf("Token [%d]: ", t);

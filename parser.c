@@ -4,18 +4,36 @@
 int current_token_index = 0;
 Token* global_tokens;
 int global_token_count;
+int parse_expression();
+int parse_term();
 
 int parse_factor() {
+    if(current_token_index >= global_token_count) return -1;
+
     Token current = global_tokens[current_token_index];
 
-    if(current.type == TOKEN_NUMBER) {
+    if(current.type == TOKEN_LPAREN) {
+        current_token_index++;
+        int result = parse_expression();
+        if(result == -1) return -1;
+
+        if(current_token_index < global_token_count && global_tokens[current_token_index].type == TOKEN_RPAREN) {
+            current_token_index++;
+            return result;
+        } else {
+            printf("Syntax error: Expected closing parenthesis ')'\n");
+            fflush(stdout);
+            return -1;
+        }
+
+    } else if(current.type == TOKEN_NUMBER) {
         current_token_index++;
         return current.value;
-    } else {
-        printf("Syntax Error: Expected Number\n");
-        fflush(stdout);
-        return -1;
+
     }
+    printf("Syntax error: Expected number or '('");
+    fflush(stdout);
+    return -1;
 }
 
 int parse_term() {
