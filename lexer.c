@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <string.h>
+#include <ctype.h>
 #include "Token.h"
 
 void append_token(Token* tokens, int* count, TokenType type, int value) {
@@ -56,10 +57,40 @@ void lexer(char* string, Token* tokens, int* token_count) {
         append_token(tokens, token_count, TOKEN_RPAREN, 0);
         printf("found closing parenthesis: )\n");
         fflush(stdout);
-       } else {
-        printf("Unknown symbol");
+       } else if(string[i] == '=') {
+        append_token(tokens, token_count, TOKEN_ASSIGN, 0);
+        printf("found assignment symbol: =\n");
+        fflush(stdout);
+       } else if(isalpha(string[i])) {
+        char buffer[32] = {0};
+        int buf_idx = 0;
+
+        while(i < n && (isalpha(string[i]) || isdigit(string[i]))) {
+            if(buf_idx < 31) {
+                buffer[buf_idx++] = string[i];
+            }
+            i++;
+        }
+        buffer[buf_idx] = '\0';
+        i--;
+        if(strcmp(buffer, "let") == 0) {
+            append_token(tokens, token_count, TOKEN_LET, 0);
+            printf("found keyword: let\n");
+        } else {
+            Token t;
+            t.type = TOKEN_IDENTIFER;
+            t.value = 0;
+            strcpy(t.name, buffer);
+
+            tokens[*token_count] = t;
+            (*token_count)++;
+            printf("found identifer: %s\n", buffer);
+        }
         fflush(stdout);
        }
+        
+       
+       
 
        }
        
@@ -83,6 +114,9 @@ void lexer(char* string, Token* tokens, int* token_count) {
                 break;
             case TOKEN_SLASH:
                 printf("Type: OPERATION, Value: /\n");
+                break;
+            case TOKEN_ASSIGN:
+                printf("Type: ASSIGN, Value: =\n");
                 break;
             default:
                 printf("Type: Unknown\n");
