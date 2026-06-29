@@ -122,7 +122,7 @@ int parse_expression() {
 
 int parse_statement() {
     Token current = global_tokens[current_token_index];
-    if(current.type = TOKEN_LET) {
+    if(current.type == TOKEN_LET) {
         current_token_index++;
     
          if(global_tokens[current_token_index].type != TOKEN_IDENTIFER) {
