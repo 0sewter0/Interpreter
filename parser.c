@@ -69,6 +69,8 @@ int parse_factor() {
         current_token_index++;
         int value = get_variable(current.name);
         return value;
+    } else if(current.type == TOKEN_EOF) {
+        return 0;
     }
     printf("Syntax error: Expected number or '('");
     fflush(stdout);
@@ -103,8 +105,7 @@ int parse_term() {
 int parse_expression() {
     int result = parse_term();
     if(result == -1) return -1;
-
-    while(current_token_index < global_token_count && (global_tokens[current_token_index].type == TOKEN_PLUS || global_tokens[current_token_index].type == TOKEN_MINUS)) {
+    while(current_token_index < global_token_count && global_tokens[current_token_index].type != TOKEN_EOF &&(global_tokens[current_token_index].type == TOKEN_PLUS || global_tokens[current_token_index].type == TOKEN_MINUS)) {
         TokenType op = global_tokens[current_token_index].type;
         current_token_index++;
 
@@ -147,6 +148,18 @@ int parse_statement() {
          }
          return result;
     } else {
+        if(current.type == TOKEN_IDENTIFER && global_tokens[current_token_index+1].type == TOKEN_ASSIGN) {
+            char var_name[26];
+            strcpy(var_name, current.name);
+            current_token_index += 2;
+            int result = parse_expression();
+            if(result != -1) {
+                set_variable(var_name, result);
+                printf("Updated: %s = %d\n", var_name, result);
+            }
+            return result;
+        } 
+        
         return parse_expression();
     }
     
@@ -158,8 +171,8 @@ int parser(Token* tokens, int token_count) {
     global_token_count = token_count;
     current_token_index = 0;
     int result = parse_statement();
-    if(current_token_index < global_token_count) {
-        printf("Syntax Error: Unexpected token '%d' at index %d\n", global_tokens[current_token_index].value, current_token_index);
+    if(current_token_index < global_token_count && global_tokens[current_token_index].type != TOKEN_EOF) {
+        printf("Syntax Error: Unexpected token '%d' at index %d\n", global_tokens[current_token_index].type, current_token_index);
         fflush(stdout);
         return -1;
 

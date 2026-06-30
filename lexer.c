@@ -94,6 +94,10 @@ void lexer(char* string, Token* tokens, int* token_count) {
        
 
        }
+       append_token(tokens, token_count, TOKEN_EOF, 0);
+
+       printf("Token found: EOF\n");
+       fflush(stdout);
        
     
     printf("\n--- Resulting Tokens Array ---\n");
@@ -130,6 +134,9 @@ void lexer(char* string, Token* tokens, int* token_count) {
                 break;
             case TOKEN_LET:
                 printf("Type: Keyword 'let'\n");
+                break;
+            case TOKEN_EOF:
+                printf("Type: End of file\n");
                 break;
             default:
                 printf("Type: Unknown\n");
