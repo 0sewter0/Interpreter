@@ -32,7 +32,7 @@ void lexer(char* string, Token* tokens, int* token_count) {
         append_token(tokens, token_count, TOKEN_NUMBER, current_number);
         printf("Number found: %d\n", current_number);
         fflush(stdout);
-        
+    
         
        } else if(string[i] == '+') {
         append_token(tokens, token_count, TOKEN_PLUS, 0);
@@ -59,13 +59,19 @@ void lexer(char* string, Token* tokens, int* token_count) {
         printf("found closing parenthesis: )\n");
         fflush(stdout);
        } else if(string[i] == '=') {
-        append_token(tokens, token_count, TOKEN_ASSIGN, 0);
-        printf("found assignment symbol: =\n");
-        fflush(stdout);
+        if(string[i+1] == '=') {
+            append_token(tokens, token_count, TOKEN_EQ, 0);
+            printf("found '=='\n");
+            i++;
+        } else {
+            append_token(tokens, token_count, TOKEN_ASSIGN, 0);
+            printf("found assign symbol\n");
+            fflush(stdout);
+        }
        } else if(isalpha(string[i])) {
         char buffer[32] = {0};
         int buf_idx = 0;
-
+       
         while(i < n && (isalpha(string[i]) || isdigit(string[i]))) {
             if(buf_idx < 31) {
                 buffer[buf_idx++] = string[i];
@@ -77,7 +83,17 @@ void lexer(char* string, Token* tokens, int* token_count) {
         if(strcmp(buffer, "let") == 0) {
             append_token(tokens, token_count, TOKEN_LET, 0);
             printf("found keyword: let\n");
-        } else {
+        } else if(strcmp(buffer, "if") == 0) {
+            append_token(tokens, token_count, TOKEN_IF, 0);
+            printf("Found keyword: if\n");
+        } else if(strcmp(buffer, "else") == 0) {
+            append_token(tokens, token_count, TOKEN_ELSE, 0);
+            printf("found keyword: else\n");
+        } else if(strcmp(buffer, "endif") == 0) {
+            append_token(tokens, token_count, TOKEN_ENDIF, 0);
+            printf("found keyword: endif\n");
+        }
+        else {
             Token t;
             t.type = TOKEN_IDENTIFER;
             t.value = 0;
@@ -88,18 +104,22 @@ void lexer(char* string, Token* tokens, int* token_count) {
             printf("found identifer: %s\n", buffer);
         }
         fflush(stdout);
-       }
+       } else if(string[i] == '>') {
+            append_token(tokens, token_count, TOKEN_GT, 0);
+            printf("found GT symbol\n");
         
        
-       
-
+       } else if(string[i] == '<') {
+            append_token(tokens, token_count, TOKEN_LT, 0);
+            printf("found LT symbol\n");
+       } else {
+         printf("Token found: Unknown\n");
+         fflush(stdout);
        }
-       append_token(tokens, token_count, TOKEN_EOF, 0);
-
-       printf("Token found: EOF\n");
-       fflush(stdout);
        
-    
+    }
+    append_token(tokens, token_count, TOKEN_EOF, 0);
+
     printf("\n--- Resulting Tokens Array ---\n");
     for(int t = 0; t < *token_count; t++) {
         printf("Token [%d]: ", t);
@@ -138,12 +158,28 @@ void lexer(char* string, Token* tokens, int* token_count) {
             case TOKEN_EOF:
                 printf("Type: End of file\n");
                 break;
+            case TOKEN_EQ:
+                printf("Type: symbol '=='\n");
+                break;
+            case TOKEN_IF:
+                printf("Type: keyword 'if'\n");
+                break;
+            case TOKEN_ELSE:
+                printf("Type: keyword 'else'\n");
+                break;
+            case TOKEN_GT:
+                printf("Type: symbol '>'\n");
+                break;
+            case TOKEN_LT:
+                printf("Type: symbol '<'\n");
+                break;
+            case TOKEN_ENDIF:
+                printf("Type: end of if\n");
+                break;
             default:
                 printf("Type: Unknown\n");
         }
     }
     printf("---------------------\n");
     fflush(stdout);
-    
-
 }

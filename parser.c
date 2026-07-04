@@ -30,7 +30,7 @@ int get_variable(char* name) {
             return memory[i].value;
         }
     }
-    printf("Identifer does NOT exist\n");
+    printf("Identifer does NOT exist: '%s'\n", name);
     fflush(stdout);
     return -1;
 }
@@ -41,6 +41,7 @@ int global_token_count;
 int parse_expression();
 int parse_term();
 int parse_statement();
+int parse_comparison();
 
 int parse_factor() {
     if(current_token_index >= global_token_count) return -1;
@@ -72,7 +73,7 @@ int parse_factor() {
     } else if(current.type == TOKEN_EOF) {
         return 0;
     }
-    printf("Syntax error: Expected number or '('");
+    printf("Syntax error: Expected number or '('\n");
     fflush(stdout);
     return -1;
 }
@@ -123,6 +124,50 @@ int parse_expression() {
 
 int parse_statement() {
     Token current = global_tokens[current_token_index];
+
+    if(current.type == TOKEN_IF) {
+        current_token_index++;
+        int condition = parse_comparison();
+
+        printf("[Parser Debug] Condition evaluated to: %d\n", condition);
+
+        if(condition == 1) {
+            int last_result;
+            printf("Result: condition is TRUE\n");
+            while(current_token_index < global_token_count && global_tokens[current_token_index].type != TOKEN_EOF && global_tokens[current_token_index].type != TOKEN_ENDIF && global_tokens[current_token_index].type != TOKEN_ELSE) {
+                printf("Debug inside if, current token index: %d, Type: %d\n", current_token_index, global_tokens[current_token_index].type);
+                last_result = parse_statement();
+            }
+            if(global_tokens[current_token_index].type == TOKEN_ELSE) {
+                current_token_index++;
+                while(current_token_index < global_token_count && global_tokens[current_token_index].type != TOKEN_EOF && global_tokens[current_token_index].type != TOKEN_ENDIF) {
+                    current_token_index++;
+                }
+            }
+            if(global_tokens[current_token_index].type == TOKEN_ENDIF) {
+                current_token_index++;
+            }
+            return last_result;
+        }
+        else {
+            printf("Result: condition is FALSE\n");
+            while(current_token_index < global_token_count && global_tokens[current_token_index].type != TOKEN_EOF && global_tokens[current_token_index].type != TOKEN_ENDIF && global_tokens[current_token_index].type != TOKEN_ELSE) {
+                current_token_index++;
+            }
+            if(global_tokens[current_token_index].type == TOKEN_ELSE) {
+                current_token_index++;
+
+                while(current_token_index < global_token_count && global_tokens[current_token_index].type != TOKEN_EOF && global_tokens[current_token_index].type != TOKEN_ENDIF) {
+                    parse_statement();
+                }
+            }
+            if(global_tokens[current_token_index].type == TOKEN_ENDIF) {
+                current_token_index++;
+            }
+            return 0;
+        }
+    }
+
     if(current.type == TOKEN_LET) {
         current_token_index++;
     
@@ -141,7 +186,7 @@ int parse_statement() {
          }
          current_token_index++;
 
-         int result = parse_expression();
+         int result = parse_comparison();
          if(result != -1) {
              set_variable(var_name, result);
              printf("Saved: %s = %d\n", var_name, result);
@@ -152,7 +197,9 @@ int parse_statement() {
             char var_name[26];
             strcpy(var_name, current.name);
             current_token_index += 2;
-            int result = parse_expression();
+            
+            int result = parse_comparison();
+            
             if(result != -1) {
                 set_variable(var_name, result);
                 printf("Updated: %s = %d\n", var_name, result);
@@ -160,10 +207,28 @@ int parse_statement() {
             return result;
         } 
         
-        return parse_expression();
+        return parse_comparison();
     }
-    
+}
 
+int parse_comparison() {
+    int result = parse_expression();
+
+    while(current_token_index < global_token_count && global_tokens[current_token_index].type != TOKEN_EOF && (global_tokens[current_token_index].type == TOKEN_EQ || global_tokens[current_token_index].type == TOKEN_GT || global_tokens[current_token_index].type == TOKEN_LT)) {
+        Token op = global_tokens[current_token_index];
+        current_token_index++;
+        int right = parse_expression();
+        if(result == -1 || right == -1) return -1;
+
+        if(op.type == TOKEN_EQ) {
+            result = (result == right);
+        } else if(op.type == TOKEN_LT) {
+            result = (result < right);
+        } else if(op.type == TOKEN_GT) {
+            result = (result > right);
+        }
+    }
+    return result;
 }
 
 int parser(Token* tokens, int token_count) {

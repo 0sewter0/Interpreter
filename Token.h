@@ -12,6 +12,12 @@ typedef enum {
     TOKEN_LET,
     TOKEN_IDENTIFER,
     TOKEN_ASSIGN,
+    TOKEN_IF,
+    TOKEN_ELSE,
+    TOKEN_EQ,
+    TOKEN_LT,
+    TOKEN_GT,
+    TOKEN_ENDIF,
     TOKEN_EOF
 } TokenType;
 
