@@ -44,9 +44,9 @@ int parse_statement();
 int parse_comparison();
 
 int parse_factor() {
-    if(current_token_index >= global_token_count) return -1;
-
     Token current = global_tokens[current_token_index];
+
+    if(current_token_index >= global_token_count) return -1;
 
     if(current.type == TOKEN_LPAREN) {
         current_token_index++;
@@ -82,7 +82,7 @@ int parse_term() {
     int result = parse_factor();
     if(result == -1) return -1;
 
-    while(current_token_index < global_token_count && (global_tokens[current_token_index].type == TOKEN_STAR || global_tokens[current_token_index].type == TOKEN_SLASH)) {
+    while(current_token_index < global_token_count && (global_tokens[current_token_index].type == TOKEN_STAR || global_tokens[current_token_index].type == TOKEN_SLASH) && global_tokens[current_token_index].type != TOKEN_EOF) {
         TokenType op = global_tokens[current_token_index].type;
         current_token_index++;
 
@@ -106,7 +106,7 @@ int parse_term() {
 int parse_expression() {
     int result = parse_term();
     if(result == -1) return -1;
-    while(current_token_index < global_token_count && global_tokens[current_token_index].type != TOKEN_EOF &&(global_tokens[current_token_index].type == TOKEN_PLUS || global_tokens[current_token_index].type == TOKEN_MINUS)) {
+    while(current_token_index < global_token_count && global_tokens[current_token_index].type != TOKEN_EOF && (global_tokens[current_token_index].type == TOKEN_PLUS || global_tokens[current_token_index].type == TOKEN_MINUS)) {
         TokenType op = global_tokens[current_token_index].type;
         current_token_index++;
 
@@ -130,42 +130,44 @@ int parse_statement() {
         int condition = parse_comparison();
 
         printf("[Parser Debug] Condition evaluated to: %d\n", condition);
-
-        if(condition == 1) {
+        if(global_tokens[current_token_index].type == TOKEN_LBRACE) {
+            if(condition == 1) {
             int last_result;
             printf("Result: condition is TRUE\n");
-            while(current_token_index < global_token_count && global_tokens[current_token_index].type != TOKEN_EOF && global_tokens[current_token_index].type != TOKEN_ENDIF && global_tokens[current_token_index].type != TOKEN_ELSE) {
+            while(current_token_index < global_token_count && global_tokens[current_token_index].type != TOKEN_EOF && global_tokens[current_token_index].type != TOKEN_RBRACE && global_tokens[current_token_index].type != TOKEN_ELSE) {
                 printf("Debug inside if, current token index: %d, Type: %d\n", current_token_index, global_tokens[current_token_index].type);
                 last_result = parse_statement();
             }
             if(global_tokens[current_token_index].type == TOKEN_ELSE) {
                 current_token_index++;
-                while(current_token_index < global_token_count && global_tokens[current_token_index].type != TOKEN_EOF && global_tokens[current_token_index].type != TOKEN_ENDIF) {
+                while(current_token_index < global_token_count && global_tokens[current_token_index].type != TOKEN_EOF && global_tokens[current_token_index].type != TOKEN_RBRACE) {
                     current_token_index++;
                 }
             }
-            if(global_tokens[current_token_index].type == TOKEN_ENDIF) {
+            if(global_tokens[current_token_index].type == TOKEN_RBRACE) {
                 current_token_index++;
             }
             return last_result;
         }
-        else {
-            printf("Result: condition is FALSE\n");
-            while(current_token_index < global_token_count && global_tokens[current_token_index].type != TOKEN_EOF && global_tokens[current_token_index].type != TOKEN_ENDIF && global_tokens[current_token_index].type != TOKEN_ELSE) {
-                current_token_index++;
-            }
-            if(global_tokens[current_token_index].type == TOKEN_ELSE) {
-                current_token_index++;
-
-                while(current_token_index < global_token_count && global_tokens[current_token_index].type != TOKEN_EOF && global_tokens[current_token_index].type != TOKEN_ENDIF) {
-                    parse_statement();
-                }
-            }
-            if(global_tokens[current_token_index].type == TOKEN_ENDIF) {
-                current_token_index++;
-            }
-            return 0;
+    else {
+        printf("Result: condition is FALSE\n");
+        while(current_token_index < global_token_count && global_tokens[current_token_index].type != TOKEN_EOF && global_tokens[current_token_index].type != TOKEN_RBRACE && global_tokens[current_token_index].type != TOKEN_ELSE) {
+            current_token_index++;
         }
+        if(global_tokens[current_token_index].type == TOKEN_ELSE) {
+            current_token_index++;
+
+            while(current_token_index < global_token_count && global_tokens[current_token_index].type != TOKEN_EOF && global_tokens[current_token_index].type != TOKEN_RBRACE) {
+                parse_statement();
+            }
+        }
+        if(global_tokens[current_token_index].type == TOKEN_RBRACE) {
+            current_token_index++;
+        }
+        return 0;
+    }
+        }
+
     }
 
     if(current.type == TOKEN_LET) {
@@ -192,7 +194,77 @@ int parse_statement() {
              printf("Saved: %s = %d\n", var_name, result);
          }
          return result;
-    } else {
+    } if(current.type == TOKEN_WRITE) {
+        current_token_index++;
+
+        if(global_tokens[current_token_index].type != TOKEN_LPAREN) {
+            printf("Syntax error: Expected '(' after 'write'\n");
+            return -1;
+        }
+        current_token_index++;
+
+        if(global_tokens[current_token_index].type == TOKEN_STRING) {
+            printf("%s\n", global_tokens[current_token_index].string_value);
+            current_token_index++;
+        } else {
+            int value_to_print = parse_expression();
+            printf("%d\n", value_to_print);
+        }
+       
+        if(global_tokens[current_token_index].type != TOKEN_RPAREN) {
+            printf("Syntax error: Expected closing parenthesis after opening parenthesis\n");
+            return -1;
+        }
+        current_token_index++;
+        return 0;
+    } if (current.type == TOKEN_WHILE) {
+        current_token_index++;
+        if (global_tokens[current_token_index].type == TOKEN_LPAREN) {
+            current_token_index++;
+        } else {
+            printf("Syntax error: Expected '(' after 'while'\n");
+            return -1;
+          }
+
+        int condition_start_index = current_token_index;
+
+   
+        while (1) {
+        
+            current_token_index = condition_start_index;
+            int condition_res = parse_comparison();
+            if (global_tokens[current_token_index].type == TOKEN_RPAREN) {
+                current_token_index++;
+            } else {
+                printf("Syntax error: Expected ')'\n");
+                return -1;
+            }
+
+       
+            if (global_tokens[current_token_index].type == TOKEN_LBRACE) {
+            current_token_index++;
+            }
+
+        
+            if (condition_res == 1) {
+                while (global_tokens[current_token_index].type != TOKEN_RBRACE) {
+                    parse_statement();
+                }
+            
+            } 
+            else {
+                int brace_count = 1;
+                while (brace_count > 0) {
+                    if (global_tokens[current_token_index].type == TOKEN_LBRACE) brace_count++;
+                    if (global_tokens[current_token_index].type == TOKEN_RBRACE) brace_count--;
+                    current_token_index++;
+                }
+                break; 
+            }
+        }
+    return 0; 
+}
+    else {
         if(current.type == TOKEN_IDENTIFER && global_tokens[current_token_index+1].type == TOKEN_ASSIGN) {
             char var_name[26];
             strcpy(var_name, current.name);
@@ -235,12 +307,17 @@ int parser(Token* tokens, int token_count) {
     global_tokens = tokens;
     global_token_count = token_count;
     current_token_index = 0;
-    int result = parse_statement();
-    if(current_token_index < global_token_count && global_tokens[current_token_index].type != TOKEN_EOF) {
-        printf("Syntax Error: Unexpected token '%d' at index %d\n", global_tokens[current_token_index].type, current_token_index);
-        fflush(stdout);
-        return -1;
+    int result = 0;
+    
+    while(current_token_index < global_token_count && global_tokens[current_token_index].type != TOKEN_EOF) {
+        result = parse_statement();
+        
 
+        if(result == -1) {
+            return -1;
+            printf("\n[PARSER FATAL]");
+            break;
+        }
     }
 
     return result;

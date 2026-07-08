@@ -14,44 +14,42 @@ int main() {
     printf("Введите выражение или же 'exit' для выхода: \n");
 
     char big_buffer[2048];
-    int inside_if = 0;
+
+    int brace_level = 0;
+    big_buffer[0] = '\0';
 
     while(1) {
         char input_string[256];
         int token_count = 0;
 
-        
-
-        if(inside_if) printf("... ");
+        if (brace_level > 0) printf("... ");
         else printf(">>> ");
         fflush(stdout);
 
-        if(fgets(input_string, sizeof(input_string), stdin) == NULL) break;
-
-        if(strncmp(input_string, "exit", 4) == 0) break;
-
-        if(strncmp(input_string, "if", 2) == 0 && (input_string[2] == ' ' || input_string[2] == '\n')) {
-            inside_if = 1;
-        }
+        if (fgets(input_string, sizeof(input_string), stdin) == NULL) break;
+        if (strncmp(input_string, "exit", 4) == 0) break;
 
         strcat(big_buffer, input_string);
 
-        if(inside_if && strstr(input_string, "endif") != NULL) {
-            inside_if = 0;
+        for (int i = 0; input_string[i] != '\0'; i++) {
+            if (input_string[i] == '{') brace_level++;
+            if (input_string[i] == '}') brace_level--;
         }
-        if(!inside_if) {
+
+        if (brace_level <= 0) {
+            brace_level = 0;
+        
             Token tokens[500];
             lexer(big_buffer, tokens, &token_count);
-            if(tokens != NULL && token_count > 0) {
+        
+            if (tokens != NULL && token_count > 0) {
                 int res = parser(tokens, token_count);
-
-                if(res != -1 && strncmp(big_buffer, "let", 3) != 0 && strncmp(big_buffer, "if", 2) != 0) {
-                    printf("Result: %d\n", res);
-                }
+                printf("Result: %d\n", res);
             }
-            big_buffer[0] = '\0';
-        } 
+        
+        big_buffer[0] = '\0';
     }
+}
 
  
     return 0;

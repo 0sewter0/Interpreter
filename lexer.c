@@ -13,12 +13,27 @@ void append_token(Token* tokens, int* count, TokenType type, int value) {
 
     (*count)++;
 }
+void append_token_string(Token* tokens, int* count, TokenType type, char* string) {
+    
+    if(*count >= 100) {
+        printf("Error: tokens array overflow");
+        return;
+    }
+    tokens[*count].type = type;
+    
+
+    strcpy(tokens[*count].string_value, string);
+    
+
+    (*count)++;
+    
+}
 
 void lexer(char* string, Token* tokens, int* token_count) {
     int n = strlen(string);
 
     for(int i = 0; i < n; i++) {
-        if(string[i] == ' '|| string[i] == '\t') {
+        if(string[i] == ' '|| string[i] == '\r' || string[i] == '\t' || string[i] == '\n') {
             continue;
         }
 
@@ -89,9 +104,19 @@ void lexer(char* string, Token* tokens, int* token_count) {
         } else if(strcmp(buffer, "else") == 0) {
             append_token(tokens, token_count, TOKEN_ELSE, 0);
             printf("found keyword: else\n");
-        } else if(strcmp(buffer, "endif") == 0) {
-            append_token(tokens, token_count, TOKEN_ENDIF, 0);
-            printf("found keyword: endif\n");
+        } 
+          else if(strcmp(buffer, "write") == 0) {
+            append_token(tokens, token_count, TOKEN_WRITE, 0);
+            printf("found keyword: write\n");
+        } else if(strcmp(buffer, "while") == 0) {
+            append_token(tokens, token_count, TOKEN_WHILE, 0);
+            printf("found keyword: while\n");
+        } else if(strcmp(buffer, "fn") == 0) {
+            append_token(tokens, token_count, TOKEN_FN, 0);
+            printf("found keyword: fn\n");
+        } else if(strcmp(buffer, "return") == 0) {
+            append_token(tokens, token_count, TOKEN_RETURN, 0);
+            printf("found keyword: return\n"); 
         }
         else {
             Token t;
@@ -104,17 +129,46 @@ void lexer(char* string, Token* tokens, int* token_count) {
             printf("found identifer: %s\n", buffer);
         }
         fflush(stdout);
-       } else if(string[i] == '>') {
+       } else if(string[i] == '>' && string[i+1] != '>' && string[i+1] != '<') {
             append_token(tokens, token_count, TOKEN_GT, 0);
             printf("found GT symbol\n");
-        
        
        } else if(string[i] == '<') {
             append_token(tokens, token_count, TOKEN_LT, 0);
             printf("found LT symbol\n");
-       } else {
+       } else if(string[i] == '"') {
+        printf("found symbol: quote\n");
+        i++;
+        char buffer_t[256];
+        int buf_idx = 0;
+
+        while(string[i] != '"' && string[i] != '\0') {
+            buffer_t[buf_idx++] = string[i];
+            i++;
+        }
+        buffer_t[buf_idx] = '\0';
+        if(string[i] == '"') {
+            printf("found symbol: quote\n");
+            i++;
+        } else {
+            printf("Lexical error: Missing closing quote\n");
+            fflush(stdout);
+            return;
+        }
+        append_token_string(tokens, token_count, TOKEN_STRING, buffer_t);
+        i--;
+        continue;
+       } else if(string[i] == '{') {
+        append_token(tokens, token_count, TOKEN_LBRACE, 0);
+        printf("found specific symbol: '{'\n");
+       } else if(string[i] == '}') {
+        append_token(tokens, token_count, TOKEN_RBRACE, 0);
+        printf("found specific symbol: '}'\n");
+       }
+       else {
          printf("Token found: Unknown\n");
          fflush(stdout);
+         return;
        }
        
     }
@@ -173,8 +227,26 @@ void lexer(char* string, Token* tokens, int* token_count) {
             case TOKEN_LT:
                 printf("Type: symbol '<'\n");
                 break;
-            case TOKEN_ENDIF:
-                printf("Type: end of if\n");
+            case TOKEN_LBRACE:
+                printf("Type: specific symbol '{'\n");
+                break;
+            case TOKEN_WRITE:
+                printf("Type: keyword 'write'\n");
+                break;
+            case TOKEN_STRING:
+                printf("Type: string\n");
+                break;
+            case TOKEN_WHILE:
+                printf("Type: keyword 'while'\n");
+                break;
+            case TOKEN_RBRACE:
+                printf("Type: specific symbol '}'\n");
+                break;
+            case TOKEN_RETURN:
+                printf("Type: keyword 'return'\n");
+                break;
+            case TOKEN_FN:
+                printf("Type: keyword 'fn'\n");
                 break;
             default:
                 printf("Type: Unknown\n");
