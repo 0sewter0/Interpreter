@@ -1,59 +1,95 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include "Token.h"
+
+#define MAX_VARIABLES 100
+#define MAX_CALL_STACK 20
 
 typedef struct {
     char name[26];
     int value;
+    char string_value[256];
 } Variable;
 
-Variable memory[100];
-int variable_count = 0;
+Variable call_stack[MAX_CALL_STACK][MAX_VARIABLES];
+int stack_var_count[MAX_CALL_STACK] = {0};
+int current_frame = 0;
+
+#define MAX_FUNCTIONS 50
+
+typedef struct {
+    char name_fn[32];
+    int token_index;
+    char args[10][32];
+    int arg_count;
+    Token body_tokens[100];
+    int body_token_count;
+} Function;
+
+Function function_table[MAX_FUNCTIONS];
+int function_count = 0;
 
 void set_variable(char* name, int value) {
-
-    for(int i = 0; i < variable_count; i++) {
-        if(strcmp(memory[i].name, name) == 0) {
-            memory[i].value = value;
+    for(int i = 0; i < stack_var_count[current_frame]; i++) {
+        if(strcmp(call_stack[current_frame][i].name, name) == 0) {
+            call_stack[current_frame][i].value = value;
             return;
         }
     }
-    strcpy(memory[variable_count].name, name);
-    memory[variable_count].value = value;
-    variable_count++;
+    if(current_frame > 0) {
+        for(int i = 0; i < stack_var_count[0]; i++) {
+            if(strcmp(call_stack[0][i].name, name) == 0) {
+                call_stack[0][i].value = value;
+                return;
+            }
+        }
+    }
+    int idx = stack_var_count[current_frame];
+    if(idx >= MAX_VARIABLES) {
+        printf("Runtime error: too many variables in current frame\n");
+        return;
+    }
+    strcpy(call_stack[current_frame][idx].name, name);
+    call_stack[current_frame][idx].value = value;//tututu srz
+    stack_var_count[current_frame]++;
 }
 
 int get_variable(char* name) {
-
-    for(int i = 0; i < variable_count; i++) {
-        if(strcmp(memory[i].name, name) == 0) {
-            return memory[i].value;
+    for(int i = 0; i < stack_var_count[current_frame]; i++) {
+        if(strcmp(call_stack[current_frame][i].name, name) == 0) {
+            return call_stack[current_frame][i].value;
         }
     }
-    printf("Identifer does NOT exist: '%s'\n", name);
-    fflush(stdout);
+    if(current_frame > 0) {
+        for(int i = 0; i < stack_var_count[0]; i++) {
+            if(strcmp(call_stack[0][i].name, name) == 0) {
+                return call_stack[0][i].value;
+            }
+        }
+    }
+    printf("Runtime Error: Variable %s does not found\n", name);
     return -1;
 }
 
 int current_token_index = 0;
 Token* global_tokens;
-int global_token_count;
+//int global_token_count;
 int parse_expression();
 int parse_term();
 int parse_statement();
 int parse_comparison();
+int execute_function_call(char *func_name);
 
 int parse_factor() {
     Token current = global_tokens[current_token_index];
-
-    if(current_token_index >= global_token_count) return -1;
 
     if(current.type == TOKEN_LPAREN) {
         current_token_index++;
         int result = parse_expression();
         if(result == -1) return -1;
 
-        if(current_token_index < global_token_count && global_tokens[current_token_index].type == TOKEN_RPAREN) {
+        if(global_tokens[current_token_index].type == TOKEN_RPAREN) {
             current_token_index++;
             return result;
         } else {
@@ -63,26 +99,39 @@ int parse_factor() {
         }
 
     } else if(current.type == TOKEN_NUMBER) {
+        printf("I hate debugging: %d\n", current.value);
         current_token_index++;
         return current.value;
 
     } else if(current.type == TOKEN_IDENTIFER) {
-        current_token_index++;
-        int value = get_variable(current.name);
-        return value;
+        if(global_tokens[current_token_index+1].type == TOKEN_LPAREN) {
+            char func_name[32];
+            strcpy(func_name, current.name);
+
+            current_token_index++;
+
+            int result = execute_function_call(func_name);
+            return result;
+        } else {
+            current_token_index++;
+            int value = get_variable(current.name);
+            return value;
+        }
     } else if(current.type == TOKEN_EOF) {
         return 0;
+    } else {
+        printf("Syntax error: Unexpected object\n");
+        fflush(stdout);
+        exit(1);
+        return -1;
     }
-    printf("Syntax error: Expected number or '('\n");
-    fflush(stdout);
-    return -1;
 }
 
 int parse_term() {
     int result = parse_factor();
     if(result == -1) return -1;
 
-    while(current_token_index < global_token_count && (global_tokens[current_token_index].type == TOKEN_STAR || global_tokens[current_token_index].type == TOKEN_SLASH) && global_tokens[current_token_index].type != TOKEN_EOF) {
+    while((global_tokens[current_token_index].type == TOKEN_STAR || global_tokens[current_token_index].type == TOKEN_SLASH) && global_tokens[current_token_index].type != TOKEN_EOF) {
         TokenType op = global_tokens[current_token_index].type;
         current_token_index++;
 
@@ -106,7 +155,7 @@ int parse_term() {
 int parse_expression() {
     int result = parse_term();
     if(result == -1) return -1;
-    while(current_token_index < global_token_count && global_tokens[current_token_index].type != TOKEN_EOF && (global_tokens[current_token_index].type == TOKEN_PLUS || global_tokens[current_token_index].type == TOKEN_MINUS)) {
+    while(global_tokens[current_token_index].type != TOKEN_EOF && (global_tokens[current_token_index].type == TOKEN_PLUS || global_tokens[current_token_index].type == TOKEN_MINUS)) {
         TokenType op = global_tokens[current_token_index].type;
         current_token_index++;
 
@@ -134,13 +183,13 @@ int parse_statement() {
             if(condition == 1) {
             int last_result;
             printf("Result: condition is TRUE\n");
-            while(current_token_index < global_token_count && global_tokens[current_token_index].type != TOKEN_EOF && global_tokens[current_token_index].type != TOKEN_RBRACE && global_tokens[current_token_index].type != TOKEN_ELSE) {
+            while(global_tokens[current_token_index].type != TOKEN_EOF && global_tokens[current_token_index].type != TOKEN_RBRACE && global_tokens[current_token_index].type != TOKEN_ELSE) {
                 printf("Debug inside if, current token index: %d, Type: %d\n", current_token_index, global_tokens[current_token_index].type);
                 last_result = parse_statement();
             }
             if(global_tokens[current_token_index].type == TOKEN_ELSE) {
                 current_token_index++;
-                while(current_token_index < global_token_count && global_tokens[current_token_index].type != TOKEN_EOF && global_tokens[current_token_index].type != TOKEN_RBRACE) {
+                while(global_tokens[current_token_index].type != TOKEN_EOF && global_tokens[current_token_index].type != TOKEN_RBRACE) {
                     current_token_index++;
                 }
             }
@@ -151,13 +200,13 @@ int parse_statement() {
         }
     else {
         printf("Result: condition is FALSE\n");
-        while(current_token_index < global_token_count && global_tokens[current_token_index].type != TOKEN_EOF && global_tokens[current_token_index].type != TOKEN_RBRACE && global_tokens[current_token_index].type != TOKEN_ELSE) {
+        while(global_tokens[current_token_index].type != TOKEN_EOF && global_tokens[current_token_index].type != TOKEN_RBRACE && global_tokens[current_token_index].type != TOKEN_ELSE) {
             current_token_index++;
         }
         if(global_tokens[current_token_index].type == TOKEN_ELSE) {
             current_token_index++;
 
-            while(current_token_index < global_token_count && global_tokens[current_token_index].type != TOKEN_EOF && global_tokens[current_token_index].type != TOKEN_RBRACE) {
+            while(global_tokens[current_token_index].type != TOKEN_EOF && global_tokens[current_token_index].type != TOKEN_RBRACE) {
                 parse_statement();
             }
         }
@@ -263,7 +312,59 @@ int parse_statement() {
             }
         }
     return 0; 
-}
+}   if(current.type == TOKEN_FN) {
+        current_token_index++;
+        if(global_tokens[current_token_index].type != TOKEN_IDENTIFER) {
+            printf("Bro, I was waiting for function name, isn't that obvious?\n");
+            return -1;
+        }
+        Function* f = &function_table[function_count];
+        strcpy(f->name_fn, global_tokens[current_token_index].name);
+        f->arg_count = 0;
+        f->body_token_count = 0;
+        current_token_index++;
+
+        if(global_tokens[current_token_index].type == TOKEN_LPAREN) {
+            current_token_index++;
+            while(global_tokens[current_token_index].type == TOKEN_IDENTIFER) {
+                strcpy(f->args[f->arg_count], global_tokens[current_token_index].name);
+                f->arg_count++;
+                current_token_index++;
+            }
+        
+        if(global_tokens[current_token_index].type == TOKEN_RPAREN) {
+                current_token_index++;
+        } 
+        else {
+                printf("Syntax error: Expected ')'\n");
+                return -1;
+        }
+        }
+        if(global_tokens[current_token_index].type != TOKEN_LBRACE) {
+            printf("Syntax error: Expected '{'\n");
+            return -1;
+        }
+        current_token_index++;
+
+        int brace_stack = 1;
+        do {
+            if(global_tokens[current_token_index].type == TOKEN_LBRACE) brace_stack++;
+            if(global_tokens[current_token_index].type == TOKEN_RBRACE) brace_stack--;
+
+            if(brace_stack > 0) {
+                f->body_tokens[f->body_token_count] = global_tokens[current_token_index];
+                f->body_token_count++;
+            }
+            current_token_index++;
+        } while(brace_stack > 0 && global_tokens[current_token_index].type != TOKEN_EOF);
+
+        f->body_tokens[f->body_token_count].type = TOKEN_EOF;
+        f->body_token_count++;
+
+        function_count++;
+        return 0;
+    }
+
     else {
         if(current.type == TOKEN_IDENTIFER && global_tokens[current_token_index+1].type == TOKEN_ASSIGN) {
             char var_name[26];
@@ -286,7 +387,7 @@ int parse_statement() {
 int parse_comparison() {
     int result = parse_expression();
 
-    while(current_token_index < global_token_count && global_tokens[current_token_index].type != TOKEN_EOF && (global_tokens[current_token_index].type == TOKEN_EQ || global_tokens[current_token_index].type == TOKEN_GT || global_tokens[current_token_index].type == TOKEN_LT)) {
+    while(global_tokens[current_token_index].type != TOKEN_EOF && (global_tokens[current_token_index].type == TOKEN_EQ || global_tokens[current_token_index].type == TOKEN_GT || global_tokens[current_token_index].type == TOKEN_LT)) {
         Token op = global_tokens[current_token_index];
         current_token_index++;
         int right = parse_expression();
@@ -303,16 +404,80 @@ int parse_comparison() {
     return result;
 }
 
-int parser(Token* tokens, int token_count) {
+int execute_function_call(char* func_name) {
+    Function *f = NULL;
+    for(int i = 0; i < function_count; i++) {
+        if(strcmp(function_table[i].name_fn, func_name) == 0) {
+            f = &function_table[i];
+            break;
+        }
+    }
+    if(f == NULL) {
+        printf("Runtime error: Function %s not found\n", func_name);
+        return -1;
+    }
+    if(global_tokens[current_token_index].type != TOKEN_LPAREN) {
+        printf("Syntax error: Expected '(' in function call\n");
+        return -1;
+    }
+    current_token_index++;
+
+    int temp_args[10] = {0};
+    int counted_args = 0;
+
+    while(global_tokens[current_token_index].type != TOKEN_RPAREN && global_tokens[current_token_index].type != TOKEN_EOF) {
+        temp_args[counted_args++] = parse_expression();
+    }
+    if(global_tokens[current_token_index].type == TOKEN_RPAREN) {
+        current_token_index++;
+    } else {
+        printf("Syntax error: Expected ')'\n");
+        return -1;
+    }
+    
+
+    int saved_return_index = current_token_index;
+    Token *saved_global_tokens = global_tokens;
+
+    current_frame++;
+    stack_var_count[current_frame] = 0;
+
+    int args_to_copy = (counted_args < f->arg_count) ? counted_args : f->arg_count;
+
+    for(int i = 0; i < args_to_copy; i++) {
+        strcpy(call_stack[current_frame][i].name, f->args[i]);
+        call_stack[current_frame][i].value = temp_args[i];
+        stack_var_count[current_frame]++;
+    }
+    global_tokens = f->body_tokens;
+    current_token_index = 0;
+    int return_value = 0;
+
+    while(global_tokens[current_token_index].type != TOKEN_RBRACE && global_tokens[current_token_index].type != TOKEN_EOF) {
+        if(global_tokens[current_token_index].type == TOKEN_RETURN) {
+            current_token_index++;
+            return_value = parse_expression();
+            break;
+        }
+        parse_statement();
+    }
+    stack_var_count[current_frame] = 0;
+    current_frame--;
+    
+    global_tokens = saved_global_tokens;
+    current_token_index = saved_return_index;
+
+    return return_value;
+}
+
+int parser(Token* tokens) {
     global_tokens = tokens;
-    global_token_count = token_count;
     current_token_index = 0;
     int result = 0;
     
-    while(current_token_index < global_token_count && global_tokens[current_token_index].type != TOKEN_EOF) {
+    while(global_tokens[current_token_index].type != TOKEN_EOF) {
         result = parse_statement();
         
-
         if(result == -1) {
             return -1;
             printf("\n[PARSER FATAL]");

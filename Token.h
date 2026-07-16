@@ -34,10 +34,5 @@ typedef struct {
     char string_value[256];
 } Token;
 
-typedef struct {
-    char name[32];
-    int token_index;
-} Function;
-
 
 #endif

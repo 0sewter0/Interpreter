@@ -10,7 +10,7 @@ int main() {
         system("chcp 65001 > nul");
     #endif
 
-    printf("=== Мой интерпретатор v2.0 ===\n");
+    printf("=== My interpreter v2.3 ===\n");
     printf("Введите выражение или же 'exit' для выхода: \n");
 
     char big_buffer[2048];
@@ -43,11 +43,11 @@ int main() {
             lexer(big_buffer, tokens, &token_count);
         
             if (tokens != NULL && token_count > 0) {
-                int res = parser(tokens, token_count);
+                int res = parser(tokens);
                 printf("Result: %d\n", res);
             }
-        
-        big_buffer[0] = '\0';
+
+            big_buffer[0] = '\0';
     }
 }
 
