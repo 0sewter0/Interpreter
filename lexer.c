@@ -4,7 +4,7 @@
 #include "Token.h"
 
 void append_token(Token* tokens, int* count, TokenType type, int value) {
-    if(*count >= 100) {
+    if(*count >= 150) {
         printf("Error tokens array overflow");
         return;
     }
@@ -164,6 +164,9 @@ void lexer(char* string, Token* tokens, int* token_count) {
        } else if(string[i] == '}') {
         append_token(tokens, token_count, TOKEN_RBRACE, 0);
         printf("found specific symbol: '}'\n");
+       } else if(string[i] == ',') {
+        append_token(tokens, token_count, TOKEN_COMMA, 0);
+        printf("found specific symbol: ','\n");
        }
        else {
          printf("Token found: Unknown\n");

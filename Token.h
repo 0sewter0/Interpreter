@@ -24,6 +24,7 @@ typedef enum {
     TOKEN_LBRACE,
     TOKEN_FN,
     TOKEN_RETURN,
+    TOKEN_COMMA,
     TOKEN_EOF
 } TokenType;
 

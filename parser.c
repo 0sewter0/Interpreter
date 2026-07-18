@@ -99,7 +99,6 @@ int parse_factor() {
         }
 
     } else if(current.type == TOKEN_NUMBER) {
-        printf("I hate debugging: %d\n", current.value);
         current_token_index++;
         return current.value;
 
@@ -252,12 +251,24 @@ int parse_statement() {
         }
         current_token_index++;
 
-        if(global_tokens[current_token_index].type == TOKEN_STRING) {
-            printf("%s\n", global_tokens[current_token_index].string_value);
-            current_token_index++;
-        } else {
-            int value_to_print = parse_expression();
-            printf("%d\n", value_to_print);
+        while(global_tokens[current_token_index].type != TOKEN_RPAREN && global_tokens[current_token_index].type != TOKEN_EOF) {
+            if(global_tokens[current_token_index].type == TOKEN_STRING) {
+                printf("%s ", global_tokens[current_token_index].string_value);
+                current_token_index++;
+            } else {
+                int value_to_print = parse_expression();
+                printf("%d ", value_to_print);
+            }
+            if(global_tokens[current_token_index].type == TOKEN_COMMA) {
+                current_token_index++;
+                if(global_tokens[current_token_index].type == TOKEN_EOF || global_tokens[current_token_index].type == TOKEN_RPAREN) {
+                    printf("Syntax error: Trailing comma in write() at index %d\n", current_token_index-1);
+                    return -1;
+                }
+            } else if(global_tokens[current_token_index].type != TOKEN_RPAREN) {
+                printf("Syntax error: Expected ')' or ',' in write() at index %d\n", current_token_index);
+                return -1;
+            } 
         }
        
         if(global_tokens[current_token_index].type != TOKEN_RPAREN) {
@@ -265,6 +276,8 @@ int parse_statement() {
             return -1;
         }
         current_token_index++;
+
+        printf("\n");
         return 0;
     } if (current.type == TOKEN_WHILE) {
         current_token_index++;
@@ -326,25 +339,32 @@ int parse_statement() {
 
         if(global_tokens[current_token_index].type == TOKEN_LPAREN) {
             current_token_index++;
-            while(global_tokens[current_token_index].type == TOKEN_IDENTIFER) {
-                strcpy(f->args[f->arg_count], global_tokens[current_token_index].name);
-                f->arg_count++;
-                current_token_index++;
+            while(global_tokens[current_token_index].type != TOKEN_EOF && global_tokens[current_token_index].type != TOKEN_RPAREN) {
+                if(global_tokens[current_token_index].type == TOKEN_IDENTIFER) {
+                    strcpy(f->args[f->arg_count], global_tokens[current_token_index].name);
+                    f->arg_count++;
+                    current_token_index++;
+                }
+
+                if(global_tokens[current_token_index].type == TOKEN_COMMA) {
+                    current_token_index++;
+
+                    if(global_tokens[current_token_index].type == TOKEN_RPAREN) {
+                        printf("Syntax error: Trailing comma in function declaration at index %d\n", current_token_index-1);
+                        return -1;
+                    }
+                } else if(global_tokens[current_token_index].type != TOKEN_RPAREN) {
+                    printf("Syntax error: Expected ')' or ',' in  function declaration at index %d\n", current_token_index);
+                    return -1;
+                }
             }
-        
-        if(global_tokens[current_token_index].type == TOKEN_RPAREN) {
-                current_token_index++;
-        } 
-        else {
-                printf("Syntax error: Expected ')'\n");
-                return -1;
-        }
-        }
+        current_token_index++;
         if(global_tokens[current_token_index].type != TOKEN_LBRACE) {
             printf("Syntax error: Expected '{'\n");
             return -1;
         }
-        current_token_index++;
+            current_token_index++;
+        }    
 
         int brace_stack = 1;
         do {
@@ -425,15 +445,25 @@ int execute_function_call(char* func_name) {
     int temp_args[10] = {0};
     int counted_args = 0;
 
-    while(global_tokens[current_token_index].type != TOKEN_RPAREN && global_tokens[current_token_index].type != TOKEN_EOF) {
+    while(global_tokens[current_token_index].type != TOKEN_EOF && global_tokens[current_token_index].type != TOKEN_RPAREN) {
         temp_args[counted_args++] = parse_expression();
+
+        if(global_tokens[current_token_index].type == TOKEN_COMMA) {
+            current_token_index++;
+            if(global_tokens[current_token_index].type == TOKEN_RPAREN) {
+                printf("Syntax error: Trailing comma in function call at index %d\n", current_token_index-1);
+                return -1;
+            }
+        } else if(global_tokens[current_token_index].type != TOKEN_RPAREN) {
+            printf("Syntax error: Expected ')' or ',' in function call at index %d\n", current_token_index);
+            return -1;
+        }
     }
-    if(global_tokens[current_token_index].type == TOKEN_RPAREN) {
-        current_token_index++;
-    } else {
-        printf("Syntax error: Expected ')'\n");
+    if(global_tokens[current_token_index].type != TOKEN_RPAREN) {
+        printf("Syntax error: Expected ')' after arguments at index %d\n", current_token_index);
         return -1;
     }
+    current_token_index++;
     
 
     int saved_return_index = current_token_index;
