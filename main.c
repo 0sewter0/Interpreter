@@ -3,15 +3,16 @@
 #include "lexer.h"
 #include "parser.h"
 #include <string.h>
+#include <time.h>
 #include <stdlib.h>
 
 int main() {
     #ifdef _WIN32
         system("chcp 65001 > nul");
     #endif
-
-    printf("=== My interpreter v2.3 ===\n");
-    printf("Введите выражение или же 'exit' для выхода: \n");
+    srand(time(NULL));
+    printf("=== My interpreter v1.0 ===\n");
+    printf("Enter the expression or 'exit' for close: \n");
 
     char big_buffer[2048];
 

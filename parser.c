@@ -2,6 +2,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include "Token.h"
+#include <time.h>
+#include <ctype.h>
 
 #define MAX_VARIABLES 100
 #define MAX_CALL_STACK 20
@@ -10,6 +12,10 @@ typedef struct {
     char name[26];
     int value;
     char string_value[256];
+    short is_array;
+    int *array_data;
+    int capasity;
+    int length;
 } Variable;
 
 Variable call_stack[MAX_CALL_STACK][MAX_VARIABLES];
@@ -29,6 +35,13 @@ typedef struct {
 
 Function function_table[MAX_FUNCTIONS];
 int function_count = 0;
+
+typedef struct {
+    int *data;
+    int length;
+} ParsedArray;
+
+ParsedArray last_parsed_array;
 
 void set_variable(char* name, int value) {
     for(int i = 0; i < stack_var_count[current_frame]; i++) {
@@ -72,6 +85,61 @@ int get_variable(char* name) {
     return -1;
 }
 
+int get_array_element(char *name, int index) {
+    for(int i = 0; i < stack_var_count[current_frame]; i++) {
+        if(strcmp(call_stack[current_frame][i].name, name) == 0) {
+            if(!call_stack[current_frame][i].is_array) {
+                printf("Runtime error: '%s' is not an array\n", name);
+                exit(1);
+            }
+            if(index < 0 || index >= call_stack[current_frame][i].length) {
+                printf("Segmenation fault(core dumped)\n");
+                exit(1);
+            }
+            return call_stack[current_frame][i].array_data[index];
+        }
+    }
+    if(current_frame != 0) {
+        for(int i = 0; i < stack_var_count[0]; i++) {
+            if(strcmp(call_stack[0][i].name, name) == 0) {
+                if(!call_stack[0][i].is_array) {
+                    printf("Runtime error: '%s' is not an array\n", name);
+                    exit(1);
+                }
+                if(index < 0 || index >= call_stack[0][i].length) {
+                    printf("Runtime error: Index %d out of bounds for '%s'\n", index, name);
+                    exit(1);
+                }
+                return call_stack[0][i].array_data[index];
+            }
+        }
+    }
+    printf("Runtime error: Variable '%s' not found\n", name);
+    exit(1);
+}
+
+void set_array_variable(char *name, int *data, int length) {
+    for(int i = 0; i < stack_var_count[current_frame]; i++) {
+        if(strcmp(call_stack[current_frame][i].name, name) == 0) {
+            if(call_stack[current_frame][i].is_array && call_stack[current_frame][i].array_data != NULL) {
+                free(call_stack[current_frame][i].array_data);
+            }
+            call_stack[current_frame][i].is_array = 1;
+            call_stack[current_frame][i].array_data = data;
+            call_stack[current_frame][i].length = length;
+            return;
+        }
+    }
+
+    int count = stack_var_count[current_frame];
+    strcpy(call_stack[current_frame][count].name, name);
+    call_stack[current_frame][count].is_array = 1;
+    call_stack[current_frame][count].array_data = data;
+    call_stack[current_frame][count].length = length;
+
+    stack_var_count[current_frame]++;
+}
+
 int current_token_index = 0;
 Token* global_tokens;
 //int global_token_count;
@@ -95,7 +163,7 @@ int parse_factor() {
         } else {
             printf("Syntax error: Expected closing parenthesis ')'\n");
             fflush(stdout);
-            return -1;
+            exit(1);
         }
 
     } else if(current.type == TOKEN_NUMBER) {
@@ -103,26 +171,105 @@ int parse_factor() {
         return current.value;
 
     } else if(current.type == TOKEN_IDENTIFER) {
+        char name[32];
+        strcpy(name, current.name);
+
         if(global_tokens[current_token_index+1].type == TOKEN_LPAREN) {
-            char func_name[32];
-            strcpy(func_name, current.name);
-
-            current_token_index++;
-
-            int result = execute_function_call(func_name);
+            current_token_index += 2;
+            int result = execute_function_call(name);
             return result;
-        } else {
+        } else if(global_tokens[current_token_index+1].type == TOKEN_LBRACKET) {
+            current_token_index += 2;
+            int index = parse_expression();
+            if(global_tokens[current_token_index].type != TOKEN_RBRACKET) {
+                printf("Syntax error: Expected ']' after index at %d\n", current_token_index);
+                exit(1);
+            }
             current_token_index++;
+
+            return get_array_element(name, index);
+        } else {
             int value = get_variable(current.name);
+            current_token_index++;
             return value;
         }
     } else if(current.type == TOKEN_EOF) {
         return 0;
+    } else if(current.type == TOKEN_READ) {
+        current_token_index++;
+        
+        if(global_tokens[current_token_index].type != TOKEN_LPAREN) {
+            printf("Syntax error: Expected '(' for read call at index %d\n", current_token_index);
+            exit(1);
+        }
+        current_token_index++;
+        if(global_tokens[current_token_index].type != TOKEN_RPAREN) {
+            printf("Syntax error: read() takes no arguments bro\n");
+            exit(1);
+        }
+        current_token_index++;
+
+        char read_input[256];
+        printf("Input > ");
+        fflush(stdout);
+
+        if(fgets(read_input, sizeof(read_input), stdin) != NULL) {
+            return atoi(read_input);
+        }
+        return 0;
+    } else if(current.type == TOKEN_RANDOM) {
+        current_token_index++;
+
+        if(global_tokens[current_token_index].type != TOKEN_LPAREN) {
+            printf("Syntax error: Expected '(' after function name at index %d\n", current_token_index);
+            exit(1);
+        }
+        current_token_index++;
+        int left_side = parse_expression();
+        if(global_tokens[current_token_index].type != TOKEN_COMMA) {
+            printf("Syntax error: Expected comma after first argument at index %d\n", current_token_index);
+            exit(1);
+        }
+        current_token_index++;
+        int right_side = parse_expression();
+        
+        if(global_tokens[current_token_index].type != TOKEN_RPAREN) {
+            printf("Syntax error: Expected ')' after last argument at index %d\n", current_token_index);
+            exit(1);
+        }
+        current_token_index++;
+        return rand() % (right_side - left_side + 1) + left_side;
+    } else if(current.type == TOKEN_LBRACKET) {
+        current_token_index++;
+
+        int capasity = 4;
+        int length = 0;
+        int *data = (int *)malloc(sizeof(int) * capasity);
+
+        while(global_tokens[current_token_index].type != TOKEN_RBRACKET) {
+            int val = parse_expression();
+
+            if(length >= capasity) {
+                capasity *= 2;
+                data = (int *)realloc(data, sizeof(int) * capasity);
+            }
+
+            data[length++] = val;
+
+            if(global_tokens[current_token_index].type == TOKEN_COMMA) {
+                current_token_index++;
+            }
+        }
+        current_token_index++;
+
+        last_parsed_array.data = data;
+        last_parsed_array.length = length;
+
+        return -999;
     } else {
-        printf("Syntax error: Unexpected object\n");
+        printf("Syntax error: Unexpected object at index %d\n", current_token_index);
         fflush(stdout);
         exit(1);
-        return -1;
     }
 }
 
@@ -143,7 +290,7 @@ int parse_term() {
             if(right == 0) {
                 printf("Runtime Error: Division by zero\n");
                 fflush(stdout);
-                return -1;
+                exit(1);
             }
             result /= right;
         }
@@ -177,13 +324,11 @@ int parse_statement() {
         current_token_index++;
         int condition = parse_comparison();
 
-        printf("[Parser Debug] Condition evaluated to: %d\n", condition);
         if(global_tokens[current_token_index].type == TOKEN_LBRACE) {
             if(condition == 1) {
             int last_result;
             printf("Result: condition is TRUE\n");
             while(global_tokens[current_token_index].type != TOKEN_EOF && global_tokens[current_token_index].type != TOKEN_RBRACE && global_tokens[current_token_index].type != TOKEN_ELSE) {
-                printf("Debug inside if, current token index: %d, Type: %d\n", current_token_index, global_tokens[current_token_index].type);
                 last_result = parse_statement();
             }
             if(global_tokens[current_token_index].type == TOKEN_ELSE) {
@@ -232,7 +377,7 @@ int parse_statement() {
 
          if(global_tokens[current_token_index].type != TOKEN_ASSIGN) {
              printf("Syntax error: Expected '=' after variable name\n");
-             return -1;
+             exit(1);
          }
          current_token_index++;
 
@@ -284,47 +429,49 @@ int parse_statement() {
         if (global_tokens[current_token_index].type == TOKEN_LPAREN) {
             current_token_index++;
         } else {
-            printf("Syntax error: Expected '(' after 'while'\n");
-            return -1;
-          }
+            printf("Syntax error: Expected '(' after 'while' at index %d\n", current_token_index);
+            exit(1);
+        }
 
         int condition_start_index = current_token_index;
 
-   
-        while (1) {
-        
-            current_token_index = condition_start_index;
-            int condition_res = parse_comparison();
-            if (global_tokens[current_token_index].type == TOKEN_RPAREN) {
-                current_token_index++;
-            } else {
-                printf("Syntax error: Expected ')'\n");
-                return -1;
-            }
-
-       
-            if (global_tokens[current_token_index].type == TOKEN_LBRACE) {
+        int condition_res = parse_comparison();
+        if (global_tokens[current_token_index].type == TOKEN_RPAREN) {
             current_token_index++;
+        } else {
+            printf("Syntax error: Expected ')' at index %d\n", current_token_index);
+            exit(1);
+        }
+        
+       
+        if(global_tokens[current_token_index].type == TOKEN_LBRACE) {
+            current_token_index++;
+        } else {
+            printf("Syntax error: Expected '{' at index %d\n", current_token_index);
+            exit(1);
+        }
+        int body_start = current_token_index;
+        int brace_count = 1;
+        int scan_index = body_start;
+
+        while(brace_count > 0) {
+            if(global_tokens[scan_index].type == TOKEN_LBRACE) brace_count++;
+            if(global_tokens[scan_index].type == TOKEN_RBRACE) brace_count--;
+            scan_index++;
+        }
+
+        int body_end = scan_index - 1;
+
+        while(condition_res == 1) {
+            current_token_index = body_start;
+            while(current_token_index < body_end) {
+                parse_statement();
             }
 
-        
-            if (condition_res == 1) {
-                while (global_tokens[current_token_index].type != TOKEN_RBRACE) {
-                    parse_statement();
-                }
-            
-            } 
-            else {
-                int brace_count = 1;
-                while (brace_count > 0) {
-                    if (global_tokens[current_token_index].type == TOKEN_LBRACE) brace_count++;
-                    if (global_tokens[current_token_index].type == TOKEN_RBRACE) brace_count--;
-                    current_token_index++;
-                }
-                break; 
-            }
+            current_token_index = condition_start_index;
+            condition_res = parse_comparison();
         }
-    return 0; 
+        current_token_index = body_end + 1;
 }   if(current.type == TOKEN_FN) {
         current_token_index++;
         if(global_tokens[current_token_index].type != TOKEN_IDENTIFER) {
@@ -390,14 +537,17 @@ int parse_statement() {
             char var_name[26];
             strcpy(var_name, current.name);
             current_token_index += 2;
+            if(global_tokens[current_token_index].type == TOKEN_LBRACKET) {
+                parse_factor();
+                set_array_variable(var_name, last_parsed_array.data, last_parsed_array.length);
+            } else {
+                int result = parse_comparison();
             
-            int result = parse_comparison();
-            
-            if(result != -1) {
-                set_variable(var_name, result);
-                printf("Updated: %s = %d\n", var_name, result);
+                if(result != -1) {
+                    set_variable(var_name, result);
+                }
+                return result;
             }
-            return result;
         } 
         
         return parse_comparison();
@@ -425,6 +575,7 @@ int parse_comparison() {
 }
 
 int execute_function_call(char* func_name) {
+
     Function *f = NULL;
     for(int i = 0; i < function_count; i++) {
         if(strcmp(function_table[i].name_fn, func_name) == 0) {
@@ -510,7 +661,6 @@ int parser(Token* tokens) {
         
         if(result == -1) {
             return -1;
-            printf("\n[PARSER FATAL]");
             break;
         }
     }

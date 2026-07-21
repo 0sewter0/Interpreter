@@ -117,6 +117,12 @@ void lexer(char* string, Token* tokens, int* token_count) {
         } else if(strcmp(buffer, "return") == 0) {
             append_token(tokens, token_count, TOKEN_RETURN, 0);
             printf("found keyword: return\n"); 
+        } else if(strcmp(buffer, "read") == 0) {
+            append_token(tokens, token_count, TOKEN_READ, 0);
+            printf("found keyword: read\n");
+        } else if(strcmp(buffer, "random") == 0) {
+            append_token(tokens, token_count, TOKEN_RANDOM, 0);
+            printf("found keyword: random\n");
         }
         else {
             Token t;
@@ -167,6 +173,12 @@ void lexer(char* string, Token* tokens, int* token_count) {
        } else if(string[i] == ',') {
         append_token(tokens, token_count, TOKEN_COMMA, 0);
         printf("found specific symbol: ','\n");
+       } else if(string[i] == '[') {
+        append_token(tokens, token_count, TOKEN_LBRACKET, 0);
+        printf("found specific symbol: '['\n");
+       } else if(string[i] == ']') {
+        append_token(tokens, token_count, TOKEN_RBRACKET, 0);
+        printf("found specific symbol: ']'\n");
        }
        else {
          printf("Token found: Unknown\n");
@@ -250,6 +262,21 @@ void lexer(char* string, Token* tokens, int* token_count) {
                 break;
             case TOKEN_FN:
                 printf("Type: keyword 'fn'\n");
+                break;
+            case TOKEN_READ:
+                printf("Type: keyword 'read'\n");
+                break;
+            case TOKEN_COMMA:
+                printf("Type: specific symbol: ','\n");
+                break;
+            case TOKEN_RANDOM:
+                printf("Type: keyword 'random'\n");
+                break;
+            case TOKEN_LBRACKET:
+                printf("Type: specific symbol: '['\n");
+                break;
+            case TOKEN_RBRACKET:
+                printf("Type: specific symbol: ']'\n");
                 break;
             default:
                 printf("Type: Unknown\n");

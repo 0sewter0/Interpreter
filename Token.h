@@ -18,6 +18,7 @@ typedef enum {
     TOKEN_LT,
     TOKEN_GT,
     TOKEN_WRITE,
+    TOKEN_READ,
     TOKEN_STRING,
     TOKEN_WHILE,
     TOKEN_RBRACE,
@@ -25,6 +26,9 @@ typedef enum {
     TOKEN_FN,
     TOKEN_RETURN,
     TOKEN_COMMA,
+    TOKEN_RANDOM,
+    TOKEN_LBRACKET,
+    TOKEN_RBRACKET,
     TOKEN_EOF
 } TokenType;
 
@@ -35,5 +39,14 @@ typedef struct {
     char string_value[256];
 } Token;
 
+typedef struct {
+    Token *data;
+    int count;
+    int capasity;
+} TokenVector;
+
+void init_tokens(TokenVector *vec, int initial_capacity);
+void push_token(TokenVector *vec ,Token t);
+void free_tokens(TokenVector *vec);
 
 #endif
