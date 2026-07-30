@@ -1,7 +1,9 @@
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
 #include <ctype.h>
 #include "Token.h"
+#include <stdint.h>
 
 void append_token(Token* tokens, int* count, TokenType type, int value) {
     if(*count >= 150) {
@@ -41,6 +43,10 @@ void lexer(char* string, Token* tokens, int* token_count) {
         int current_number = 0;
         while(string[i] >= '0' && string[i] <= '9') {
             current_number = (current_number * 10) + (string[i] - '0');
+            if(current_number > __INT_MAX__ || current_number < INT32_MIN) {
+                printf("Error: number is too large. Index = %d\n", string[i]);
+                exit(1);
+            }
             i++;
         } 
         i--;
@@ -145,7 +151,7 @@ void lexer(char* string, Token* tokens, int* token_count) {
        } else if(string[i] == '"') {
         printf("found symbol: quote\n");
         i++;
-        char buffer_t[256];
+        char buffer_t[512];
         int buf_idx = 0;
 
         while(string[i] != '"' && string[i] != '\0') {

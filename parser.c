@@ -155,7 +155,6 @@ int parse_factor() {
     if(current.type == TOKEN_LPAREN) {
         current_token_index++;
         int result = parse_expression();
-        if(result == -1) return -1;
 
         if(global_tokens[current_token_index].type == TOKEN_RPAREN) {
             current_token_index++;
@@ -246,7 +245,7 @@ int parse_factor() {
         int length = 0;
         int *data = (int *)malloc(sizeof(int) * capasity);
 
-        while(global_tokens[current_token_index].type != TOKEN_RBRACKET) {
+        while(global_tokens[current_token_index].type != TOKEN_RBRACKET && global_tokens[current_token_index].type != TOKEN_EOF) {
             int val = parse_expression();
 
             if(length >= capasity) {
@@ -259,6 +258,10 @@ int parse_factor() {
             if(global_tokens[current_token_index].type == TOKEN_COMMA) {
                 current_token_index++;
             }
+        }
+        if(global_tokens[current_token_index].type != TOKEN_RBRACKET) {
+            printf("Syntax error: expected ']' at index %d\n", current_token_index);
+            exit(1);
         }
         current_token_index++;
 
@@ -275,14 +278,12 @@ int parse_factor() {
 
 int parse_term() {
     int result = parse_factor();
-    if(result == -1) return -1;
 
     while((global_tokens[current_token_index].type == TOKEN_STAR || global_tokens[current_token_index].type == TOKEN_SLASH) && global_tokens[current_token_index].type != TOKEN_EOF) {
         TokenType op = global_tokens[current_token_index].type;
         current_token_index++;
 
         int right = parse_factor();
-        if(right == -1) return -1;
 
         if(op == TOKEN_STAR) {
             result *= right;
@@ -299,19 +300,19 @@ int parse_term() {
 }
 
 int parse_expression() {
-    int result = parse_term();
-    if(result == -1) return -1;
+    int left = parse_term();
+    int result = 0;
+
     while(global_tokens[current_token_index].type != TOKEN_EOF && (global_tokens[current_token_index].type == TOKEN_PLUS || global_tokens[current_token_index].type == TOKEN_MINUS)) {
         TokenType op = global_tokens[current_token_index].type;
         current_token_index++;
 
         int right = parse_term();
-        if(right == -1) return -1;
 
         if(op == TOKEN_PLUS) {
-            result += right;
+            result = (int)((unsigned int)left + (unsigned int)right);
         } else if(op == TOKEN_MINUS) {
-            result -= right;
+            result = (int)((unsigned int)left - (unsigned int)right);
         }
     }
     return result;
@@ -484,6 +485,12 @@ int parse_statement() {
         f->body_token_count = 0;
         current_token_index++;
 
+        if(global_tokens[current_token_index].type == TOKEN_EOF) {
+            printf("Syntax error: Expected '(' at index %d\n", current_token_index);
+            fflush(stdout);
+            exit(1);
+        }
+
         if(global_tokens[current_token_index].type == TOKEN_LPAREN) {
             current_token_index++;
             while(global_tokens[current_token_index].type != TOKEN_EOF && global_tokens[current_token_index].type != TOKEN_RPAREN) {
@@ -535,7 +542,8 @@ int parse_statement() {
     else {
         if(current.type == TOKEN_IDENTIFER && global_tokens[current_token_index+1].type == TOKEN_ASSIGN) {
             char var_name[26];
-            strcpy(var_name, current.name);
+            strncpy(var_name, current.name, sizeof(var_name)-1);
+            var_name[sizeof(var_name)-1] = '\0';
             current_token_index += 2;
             if(global_tokens[current_token_index].type == TOKEN_LBRACKET) {
                 parse_factor();

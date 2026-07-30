@@ -14,13 +14,13 @@ int main() {
     printf("=== My interpreter v1.0 ===\n");
     printf("Enter the expression or 'exit' for close: \n");
 
-    char big_buffer[2048];
+    char big_buffer[4996];
 
     int brace_level = 0;
     big_buffer[0] = '\0';
 
     while(1) {
-        char input_string[256];
+        char input_string[4096];
         int token_count = 0;
 
         if (brace_level > 0) printf("... ");
@@ -30,7 +30,9 @@ int main() {
         if (fgets(input_string, sizeof(input_string), stdin) == NULL) break;
         if (strncmp(input_string, "exit", 4) == 0) break;
 
-        strcat(big_buffer, input_string);
+        size_t current_len = strlen(big_buffer);
+        size_t remaining = sizeof(big_buffer) - current_len - 1;
+        strncat(big_buffer, input_string, remaining);
 
         for (int i = 0; input_string[i] != '\0'; i++) {
             if (input_string[i] == '{') brace_level++;
@@ -43,7 +45,7 @@ int main() {
             Token tokens[500];
             lexer(big_buffer, tokens, &token_count);
         
-            if (tokens != NULL && token_count > 0) {
+            if (token_count > 0) {
                 int res = parser(tokens);
                 printf("Result: %d\n", res);
             }
